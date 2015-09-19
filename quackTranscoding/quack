@@ -1,0 +1,166 @@
+#!/usr/bin/perl
+
+use Cwd;
+use File::Spec;
+use File::Path;
+use File::Find;
+use IPC::System::Simple;
+
+#quack
+#requires vorbis-tools, flac debian packages, "file" command (standard?)
+
+## general variables
+$encoder = "oggenc";
+
+
+
+#First of all, what is the argument that was supplied to quack?
+
+$type = `file -b \"$ARGV[0]\"`;
+
+if (index($type, "directory") != -1)
+    {
+	# seek inside directory recursively.
+	printf "executing find\n";
+	find({wanted => \&Test, no_chdir => 1}, $ARGV[0]);
+	
+    } else
+{
+    printf "Doing transcoding on single file";
+ &DoTranscoding($ARGV[0]);    
+}
+
+
+$cwd = getcwd;
+
+
+#printf "CWD: $cwd\n";
+
+
+
+sub Test
+{
+    #printf "before TEST $_";
+    my $type = `file -b \"$_\"`;
+
+    if (index($type, "FLAC") != -1)
+    {
+	#printf "Found FLAC file $_\n";
+	&DoTranscoding($_);
+    } else
+    {
+	printf "Rejected $_\n";
+    }
+    #printf "After TEST"
+}
+
+sub DoTranscoding #$_[0] : file to be transcoded.
+{
+    $wholeFilePath = File::Spec->rel2abs($_[0]);
+
+    ($volume,$directories,$file) = File::Spec->splitpath( $wholeFilePath );
+
+    #printf "wholepath: $wholeFilePath; Dirs: $directories; File: $file\n";
+
+    $musicRootLocation = index($wholeFilePath, '_originalQ');
+
+    if ($musicRootLocation != -1)
+    {
+	
+	$musicRoot = substr $cwd, 0, $musicRootLocation;
+	
+	
+	#printf "musicRoot: $musicRoot\n";
+	
+	$pathQ00 = $wholeFilePath;
+
+	$pathQ00 =~ s/_originalQ/_q00/;
+
+	$pathQ05 = $wholeFilePath;
+
+	$pathQ05 =~ s/_originalQ/_q05/;
+
+	$pathQ10 = $wholeFilePath;
+
+	$pathQ10 =~ s/_originalQ/_q10/;
+	
+
+	#printf "UserStructure: $pathQ0";
+
+	#@pathDirs = split( /\//, $cwd);
+
+	#$lastDir = $pathDirs[(scalar @pathDirs)-1];
+
+	#printf("Lastdir: $lastDir");
+
+	$type = `file -b \"$_[0]\"`;
+
+	#printf "Filetype is $type";
+
+	if (index($type, "FLAC") != -1)
+	{
+	    #printf("isFLAC :D");
+
+	    $pathQ00 =~ s/\.flac/\.ogg/;
+
+	    ($volume,$newPath,$newFile) = File::Spec->splitpath( $pathQ00 );
+
+
+	    @encoderArgs = ("-q","0","-o", $pathQ00, $_[0]);
+
+	   if (-s $pathQ00 <= 1024)
+	   {
+	    	File::Path->make_path($newPath);
+	        system ($encoder, @encoderArgs);
+	   } else 
+	   {
+		printf("File exists and has been skipped: $pathQ00\n");
+	   }
+	    ####
+
+	    $pathQ05 =~ s/\.flac/\.ogg/;
+
+	    ($volume,$newPath,$newFile) = File::Spec->splitpath( $pathQ05 );
+
+	    @encoderArgs = ("-q","5","-o", $pathQ05, $_[0]);
+	    
+	   if (-s $pathQ05 <= 1024)
+	   {
+	    	File::Path->make_path($newPath);
+	        system ($encoder, @encoderArgs);
+	   } else 
+	   {
+		printf("File exists and has been skipped: $pathQ05\n");
+	   }
+
+	    
+
+	    ####
+
+	    $pathQ10 =~ s/\.flac/\.ogg/;
+
+	    ($volume,$newPath,$newFile) = File::Spec->splitpath( $pathQ10 );
+
+
+	    @encoderArgs = ("-q","10","-o", $pathQ10, $_[0]);
+	    
+	   if (-s $pathQ10 <= 1024)
+	   {
+	    	File::Path->make_path($newPath);
+	        system ($encoder, @encoderArgs);
+	   } else 
+	   {
+		printf("File exists and has been skipped: $pathQ10\n");
+	   }
+
+	    
+
+	} else
+	{
+	    printf("isNotFLAC D:");
+	}
+    } else
+    {
+	printf "Error: quack cannot determine music root location (aka \"_originalQ\" )\n";
+    }
+}
