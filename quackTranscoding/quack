@@ -2,12 +2,27 @@
 
 use Cwd;
 use File::Spec;
-use File::Path;
+use File::Path qw/make_path/;
 use File::Find;
 use IPC::System::Simple;
+use File::Copy;
 
 #quack
 #requires vorbis-tools, flac debian packages, "file" command (standard?)
+
+# IMPORTANT: it REQUIRES the original files to be somewhere under a directory called _originalQ (with this exact spelling)
+# 
+# e.g. /home/myUser/mahMusique/_originalQ/mahFevritArtist/OMGMAHFEVRITALBVM/mahTrack01.flac
+#
+# it will then transcode the file to 3 different ogg qualities, duplicating the directory structure
+#
+# i.e. /home/myUser/mahMusique/_q00/mahFevritArtist/OMGMAHFEVRITALBVM/mahTrack01.ogg
+#      /home/myUser/mahMusique/_q05/mahFevritArtist/OMGMAHFEVRITALBVM/mahTrack01.ogg
+#      /home/myUser/mahMusique/_q10/mahFevritArtist/OMGMAHFEVRITALBVM/mahTrack01.ogg
+#
+# (The script generates all the necessary subdirectories)
+#
+#
 
 ## general variables
 $encoder = "oggenc";
@@ -45,8 +60,15 @@ sub Test
 
     if (index($type, "FLAC") != -1)
     {
-	#printf "Found FLAC file $_\n";
+	# printf "Found FLAC file $_\n";
+	&MakeQualityDirs($_);
 	&DoTranscoding($_);
+    } elsif(index($type, "JPEG") != -1)
+    {
+        # copy the picture file to target folder?
+	#copy("$_, 
+        &MakeQualityDirs($_);
+        &DistributePic($_);
     } else
     {
 	printf "Rejected $_\n";
@@ -54,7 +76,7 @@ sub Test
     #printf "After TEST"
 }
 
-sub DoTranscoding #$_[0] : file to be transcoded.
+sub DoTranscoding # $_[0] : file to be transcoded.
 {
     $wholeFilePath = File::Spec->rel2abs($_[0]);
 
@@ -108,9 +130,9 @@ sub DoTranscoding #$_[0] : file to be transcoded.
 
 	    @encoderArgs = ("-q","0","-o", $pathQ00, $_[0]);
 
-	   if (-s $pathQ00 <= 1024)
+	   if (-s $pathQ00 <= 1)
 	   {
-	    	File::Path->make_path($newPath);
+
 	        system ($encoder, @encoderArgs);
 	   } else 
 	   {
@@ -124,9 +146,9 @@ sub DoTranscoding #$_[0] : file to be transcoded.
 
 	    @encoderArgs = ("-q","5","-o", $pathQ05, $_[0]);
 	    
-	   if (-s $pathQ05 <= 1024)
+	   if (-s $pathQ05 <= 1)
 	   {
-	    	File::Path->make_path($newPath);
+
 	        system ($encoder, @encoderArgs);
 	   } else 
 	   {
@@ -144,9 +166,9 @@ sub DoTranscoding #$_[0] : file to be transcoded.
 
 	    @encoderArgs = ("-q","10","-o", $pathQ10, $_[0]);
 	    
-	   if (-s $pathQ10 <= 1024)
+	   if (-s $pathQ10 <= 1)
 	   {
-	    	File::Path->make_path($newPath);
+	    	
 	        system ($encoder, @encoderArgs);
 	   } else 
 	   {
@@ -163,4 +185,59 @@ sub DoTranscoding #$_[0] : file to be transcoded.
     {
 	printf "Error: quack cannot determine music root location (aka \"_originalQ\" )\n";
     }
+}
+
+sub MakeQualityDirs # $_[0]: the path to re-create
+{
+    $wholeFilePath = File::Spec->rel2abs($_[0]);
+
+    ($volume,$newPath,$newFile) = File::Spec->splitpath( $wholeFilePath );
+
+    $pathQ00 = $newPath;
+
+    $pathQ00 =~ s/_originalQ/_q00/;
+
+    $pathQ05 = $newPath;
+
+    $pathQ05 =~ s/_originalQ/_q05/;
+
+    $pathQ10 = $newPath;
+
+    $pathQ10 =~ s/_originalQ/_q10/;
+
+    print "Make path: $pathQ00";
+    make_path($pathQ00);
+    make_path($pathQ05);
+    make_path($pathQ10);
+}
+
+sub DistributePic # $_[0] : image to be redistributed
+{
+    $wholeFilePath = File::Spec->rel2abs($_[0]);
+    
+    $pathQ00 = $wholeFilePath;
+
+    $pathQ00 =~ s/_originalQ/_q00/;
+
+    $pathQ05 = $wholeFilePath;
+
+    $pathQ05 =~ s/_originalQ/_q05/;
+
+    $pathQ10 = $wholeFilePath;
+
+    $pathQ10 =~ s/_originalQ/_q10/;
+
+    if (-s $pathQ00 <= 1024)
+    {
+        copy($wholeFilePath, $pathQ00);
+    }
+    if (-s $pathQ05 <= 1024)
+    {
+        copy($wholeFilePath, $pathQ05);
+    }
+    if (-s $pathQ10 <= 1024)
+    {
+        copy($wholeFilePath, $pathQ10);
+    }
+   
 }
