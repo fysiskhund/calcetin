@@ -443,7 +443,7 @@ class Convert(Id3TagHandler):
         if self.conf.quiet:
             opts.append("--quiet")
         if dec:
-            enc = Popen(['oggenc', '-o', self.songogg, '-q', str(self.conf.quality).replace('.', ','), '-'] + opts, stdin=dec.stdout)
+            enc = Popen(['oggenc', '-o', self.songogg, '-q', str(self.conf.quality), '-'] + opts, stdin=dec.stdout)
             enc.communicate()
             dec.wait()
             if dec.returncode < 0:
@@ -453,7 +453,7 @@ class Convert(Id3TagHandler):
                 warn('Encoding of "%s" failed.' % self.song)
                 return False
         else:
-            enc = call(['oggenc', '-o', self.songogg, '-q', str(self.conf.quality).replace('.', ','), self.songwav] + opts)
+            enc = call(['oggenc', '-o', self.songogg, '-q', str(self.conf.quality), self.songwav] + opts)
             if enc != 0:
                 warn('Encoding of "%s" failed.' % self.songwav)
                 return False

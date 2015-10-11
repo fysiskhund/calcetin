@@ -25,31 +25,64 @@ use File::Copy;
 #
 
 ## general variables
-$encoder = "oggenc";
+$encoderFLAC = "oggenc";
+$encoderMyDir2Ogg = "mydir2ogg";
 
+if (scalar @ARGV > 0)
+{
+    if ($ARGV[0] eq '--hydra')
+    {
+	$howMany = $ARGV[1];
+	$fromArg = $ARGV2;
+	$heilHydra = true;
+	
+    } else
+    {
+    	$fromArg = $ARGV[0];
+    }
+} else
+{
+    $fromArg = '.';
+}
 
+if (!$heilHydra)
+{
 
 #First of all, what is the argument that was supplied to quack?
 
-$type = `file -b \"$ARGV[0]\"`;
+$type = `file -b \"$fromArg\"`;
 
 if (index($type, "directory") != -1)
     {
 	# seek inside directory recursively.
 	printf "executing find\n";
-	find({wanted => \&Test, no_chdir => 1}, $ARGV[0]);
+	find({wanted => \&Test, no_chdir => 1}, $fromArg);
 	
-    } else
+    } elsif (index($type, "FLAC") != -1)
+    {
+	# printf "Found FLAC file $_\n";
+        printf "Doing transcoding on single file";
+	&MakeQualityDirs($fromArg);
+	&DoFLACTranscoding($fromArg);
+    } elsif ((index($type, "ID3") != -1) || (index($type, "M4A") != -1))
 {
-    printf "Doing transcoding on single file";
- &DoTranscoding($ARGV[0]);    
+	# printf "Found MP3 file $_\n";
+        printf "Doing transcoding on single file";
+	&MakeQualityDirs($fromArg);
+	&DoMyDir2OggTranscoding($fromArg);
+    	
+}
+} else
+{
+  print "******\nHeil Hydra!\n******\n\n\n";
+
+	for ($i = 0; $i < $howMany; $i++)
+	{
+		system ("quack $fromArg&");
+	}
+  # end of program in hydra mode.
 }
 
-
-$cwd = getcwd;
-
-
-#printf "CWD: $cwd\n";
 
 
 
@@ -62,7 +95,12 @@ sub Test
     {
 	# printf "Found FLAC file $_\n";
 	&MakeQualityDirs($_);
-	&DoTranscoding($_);
+	&DoFLACTranscoding($_);
+    } elsif ((index($type, "ID3") != -1) || (index($type, "M4A") != -1))
+    {
+	# printf "Found MP3 file $_\n";
+	&MakeQualityDirs($_);
+	&DoMyDir2OggTranscoding($_);
     } elsif(index($type, "JPEG") != -1)
     {
         # copy the picture file to target folder?
@@ -76,7 +114,7 @@ sub Test
     #printf "After TEST"
 }
 
-sub DoTranscoding # $_[0] : file to be transcoded.
+sub DoFLACTranscoding # $_[0] : file to be transcoded.
 {
     $wholeFilePath = File::Spec->rel2abs($_[0]);
 
@@ -123,7 +161,7 @@ sub DoTranscoding # $_[0] : file to be transcoded.
 	{
 	    #printf("isFLAC :D");
 
-	    $pathQ00 =~ s/\.flac/\.ogg/;
+	    $pathQ00 =~ s/\.flac$/\.ogg/;
 
 	    ($volume,$newPath,$newFile) = File::Spec->splitpath( $pathQ00 );
 
@@ -133,14 +171,14 @@ sub DoTranscoding # $_[0] : file to be transcoded.
 	   if (-s $pathQ00 <= 1)
 	   {
 
-	        system ($encoder, @encoderArgs);
+	        system ($encoderFLAC, @encoderArgs);
 	   } else 
 	   {
 		printf("File exists and has been skipped: $pathQ00\n");
 	   }
 	    ####
 
-	    $pathQ05 =~ s/\.flac/\.ogg/;
+	    $pathQ05 =~ s/\.flac$/\.ogg/;
 
 	    ($volume,$newPath,$newFile) = File::Spec->splitpath( $pathQ05 );
 
@@ -149,7 +187,7 @@ sub DoTranscoding # $_[0] : file to be transcoded.
 	   if (-s $pathQ05 <= 1)
 	   {
 
-	        system ($encoder, @encoderArgs);
+	        system ($encoderFLAC, @encoderArgs);
 	   } else 
 	   {
 		printf("File exists and has been skipped: $pathQ05\n");
@@ -159,7 +197,7 @@ sub DoTranscoding # $_[0] : file to be transcoded.
 
 	    ####
 
-	    $pathQ10 =~ s/\.flac/\.ogg/;
+	    $pathQ10 =~ s/\.flac$/\.ogg/;
 
 	    ($volume,$newPath,$newFile) = File::Spec->splitpath( $pathQ10 );
 
@@ -169,7 +207,7 @@ sub DoTranscoding # $_[0] : file to be transcoded.
 	   if (-s $pathQ10 <= 1)
 	   {
 	    	
-	        system ($encoder, @encoderArgs);
+	        system ($encoderFLAC, @encoderArgs);
 	   } else 
 	   {
 		printf("File exists and has been skipped: $pathQ10\n");
@@ -181,6 +219,119 @@ sub DoTranscoding # $_[0] : file to be transcoded.
 	{
 	    printf("isNotFLAC D:");
 	}
+    } else
+    {
+	printf "Error: quack cannot determine music root location (aka \"_originalQ\" )\n";
+    }
+}
+
+sub DoMyDir2OggTranscoding # $_[0] : file to be transcoded.
+{
+    $wholeFilePath = File::Spec->rel2abs($_[0]);
+
+    ($volume,$directories,$file) = File::Spec->splitpath( $wholeFilePath );
+
+    #printf "wholepath: $wholeFilePath; Dirs: $directories; File: $file\n";
+
+    $musicRootLocation = index($wholeFilePath, '_originalQ');
+
+    if ($musicRootLocation != -1)
+    {
+	
+	$musicRoot = substr $cwd, 0, $musicRootLocation;
+	
+	
+	#printf "musicRoot: $musicRoot\n";
+	
+	$pathQ00 = $wholeFilePath;
+
+	$pathQ00 =~ s/_originalQ/_q00/;
+
+	$pathQ05 = $wholeFilePath;
+
+	$pathQ05 =~ s/_originalQ/_q05/;
+
+	$pathQ10 = $wholeFilePath;
+
+	$pathQ10 =~ s/_originalQ/_q10/;
+	
+
+	#printf "UserStructure: $pathQ0";
+
+	#@pathDirs = split( /\//, $cwd);
+
+	#$lastDir = $pathDirs[(scalar @pathDirs)-1];
+
+	#printf("Lastdir: $lastDir");
+
+	$type = `file -b \"$_[0]\"`;
+
+	#printf "Filetype is $type";
+	
+
+	if (index($type, "M4A") != -1)
+	{
+		$q10Arg = '-q8.8';
+	} else
+	{
+	  	$q10Arg = '-t';
+	}
+	    #printf("isFLAC :D");
+
+	    $pathQ00 =~ s/\....$/\.ogg/;
+
+	    ($volume,$newPath,$newFile) = File::Spec->splitpath( $pathQ00 );
+
+
+	    @encoderArgs = ("-q0","-o", $pathQ00, $_[0]);
+
+	   if (-s $pathQ00 <= 1)
+	   {
+
+	        system ($encoderMyDir2Ogg, @encoderArgs);
+	   } else 
+	   {
+		printf("File exists and has been skipped: $pathQ00\n");
+	   }
+	    ####
+
+	    $pathQ05 =~ s/\....$/\.ogg/;
+
+	    ($volume,$newPath,$newFile) = File::Spec->splitpath( $pathQ05 );
+
+	    @encoderArgs = ("-q5","-o", $pathQ05, $_[0]);
+	    
+	   if (-s $pathQ05 <= 1)
+	   {
+
+	        system ($encoderMyDir2Ogg, @encoderArgs);
+	   } else 
+	   {
+		printf("File exists and has been skipped: $pathQ05\n");
+	   }
+
+	    
+
+	    ####
+
+	    $pathQ10 =~ s/\....$/\.ogg/;
+
+	    ($volume,$newPath,$newFile) = File::Spec->splitpath( $pathQ10 );
+
+
+	    @encoderArgs = ($q10Arg,"-o", $pathQ10, $_[0]);
+	    
+	   if (-s $pathQ10 <= 1)
+	   {
+	    	
+	        system ($encoderMyDir2Ogg, @encoderArgs);
+	   } else 
+	   {
+		printf("File exists and has been skipped: $pathQ10\n");
+	   }
+
+	    
+
     } else
     {
 	printf "Error: quack cannot determine music root location (aka \"_originalQ\" )\n";
